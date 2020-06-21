@@ -1,4 +1,7 @@
 function varargout = colorspace(Conversion,varargin)
+   %  output_varargout--转换到对应颜色表示空间中的图像
+   %  input_Conversion--转换的颜色空间的类别
+   %  input_varargin--需要处理的图像
 %COLORSPACE  Transform a color image between color representations.
 %   B = COLORSPACE(S,A) transforms the color representation of image A
 %   where S is a string specifying the conversion.  The input array A 
@@ -85,29 +88,38 @@ function varargout = colorspace(Conversion,varargin)
 
 
 %%% Input parsing %%%
-if nargin < 2, error('Not enough input arguments.'); end
+if nargin < 2, 
+   error('Not enough input arguments.'); 
+end
 [SrcSpace,DestSpace] = parse(Conversion);
 
 if nargin == 2
    Image = varargin{1};
 elseif nargin >= 3
+   % 沿着第三个维度连接数组
    Image = cat(3,varargin{:});
 else
    error('Invalid number of input arguments.');
 end
 
 FlipDims = (size(Image,3) == 1);
-
+% permute翻转维度
 if FlipDims, Image = permute(Image,[1,3,2]); end
+% isa类型判断
 if ~isa(Image,'double'), Image = double(Image)/255; end
 if size(Image,3) ~= 3, error('Invalid input size.'); end
 
 SrcT = gettransform(SrcSpace);
 DestT = gettransform(DestSpace);
-
+% （3X4矩阵）
 if ~ischar(SrcT) && ~ischar(DestT)
+   %原空间和目的空间都存在转换矩阵
    % Both source and destination transforms are affine, so they
    % can be composed into one affine operation
+   %矩阵相乘
+   %  【T1、T4、T7、T10】
+   %  【T2、T5、T8、T11】
+   %  【T3、T6、T9、T12】
    T = [DestT(:,1:3)*SrcT(:,1:3),DestT(:,1:3)*SrcT(:,4)+DestT(:,4)];      
    Temp = zeros(size(Image));
    Temp(:,:,1) = T(1)*Image(:,:,1) + T(4)*Image(:,:,2) + T(7)*Image(:,:,3) + T(10);
@@ -115,6 +127,8 @@ if ~ischar(SrcT) && ~ischar(DestT)
    Temp(:,:,3) = T(3)*Image(:,:,1) + T(6)*Image(:,:,2) + T(9)*Image(:,:,3) + T(12);
    Image = Temp;
 elseif ~ischar(DestT)
+   %只有目的空间存在转换矩阵
+   %利用rgb空间过渡
    Image = rgb(Image,SrcSpace);
    Temp = zeros(size(Image));
    Temp(:,:,1) = DestT(1)*Image(:,:,1) + DestT(4)*Image(:,:,2) + DestT(7)*Image(:,:,3) + DestT(10);
@@ -122,6 +136,7 @@ elseif ~ischar(DestT)
    Temp(:,:,3) = DestT(3)*Image(:,:,1) + DestT(6)*Image(:,:,2) + DestT(9)*Image(:,:,3) + DestT(12);
    Image = Temp;
 else
+   %都不存在转换矩阵，采用函数句柄跳转到对应的转换函数中
    Image = feval(DestT,Image,SrcSpace);
 end
 
@@ -129,6 +144,7 @@ end
 if nargout > 1
    varargout = {Image(:,:,1),Image(:,:,2),Image(:,:,3)};
 else
+   %再翻转回来
    if FlipDims, Image = permute(Image,[1,3,2]); end
    varargout = {Image};
 end
@@ -137,9 +153,11 @@ return;
 
 
 function [SrcSpace,DestSpace] = parse(Str)
+   % 原颜色空间，目标颜色空间 -- 输入参数
 % Parse conversion argument
 
 if ischar(Str)
+   % strrep 查找并替换字符串 'Lab<-RGB'
    Str = lower(strrep(strrep(Str,'-',''),'=',''));
    k = find(Str == '>');
    
@@ -160,16 +178,19 @@ if ischar(Str)
    SrcSpace = alias(SrcSpace);
    DestSpace = alias(DestSpace);
 else
+   % 采用变换矩阵来进行颜色空间的转换
    SrcSpace = 1;             % No source pre-transform
    DestSpace = Conversion;
-   if any(size(Conversion) ~= 3), error('Transformation matrix must be 3x3.'); end
+   if any(size(Conversion) ~= 3), 
+      error('Transformation matrix must be 3x3.'); 
+   end
 end
 return;
 
 
 function Space = alias(Space)
 Space = strrep(strrep(Space,'cie',''),' ','');
-
+% 缺省下默认rgb
 if isempty(Space)
    Space = 'rgb';
 end
@@ -359,6 +380,7 @@ return;
 
 
 function Image = lab(Image,SrcSpace)
+   % 从其他颜色空间转换到Lab空间中
 % Convert to CIE L*a*b* (CIELAB)
 WhitePoint = [0.950456,1,1.088754];
 

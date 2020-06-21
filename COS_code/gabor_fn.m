@@ -1,4 +1,5 @@
 function gb=gabor_fn(bw,gamma,psi,lambda,theta)
+	%用于产生不同方向的Gabor滤波核
 % bw    = bandwidth, (1)
 % gamma = aspect ratio, (0.5)
 % psi   = phase shift, (0)
@@ -8,13 +9,16 @@ function gb=gabor_fn(bw,gamma,psi,lambda,theta)
 sigma = lambda/pi*sqrt(log(2)/2)*(2^bw+1)/(2^bw-1);
 sigma_x = sigma;
 sigma_y = sigma/gamma;
-
+%fix朝零方向四舍五入
+%滤波大小
 sz=fix(8*max(sigma_y,sigma_x));
-if mod(sz,2)==0, sz=sz+1;end
+if mod(sz,2)==0, 
+	sz=sz+1;
+end
 
 % alternatively, use a fixed size
 % sz = 60;
- 
+%meshgrid生成二维网格
 [x y]=meshgrid(-fix(sz/2):fix(sz/2),fix(sz/2):-1:fix(-sz/2));
 % x (right +)
 % y (up +)
